@@ -110,18 +110,19 @@ void loop() {
   speed = map(distance, 10, 1100, 0, 150);
   goForward(speed);
 
+  while (distance < 50) {
+    goBackward();
+    distance = frontSensor.readRangeContinuousMillimeters();
+  }
+
   angle += delta;
   radarServo.write(angle);              // tell servo to go to position in variable 'pos'
-
-  //delay(1000);
+  //delay(10);
 
   if ((angle == 0) || (angle == 180)) {
     delta = -delta;
     //delay(5000);
   }
-
-
-
 
 }
 
@@ -133,8 +134,8 @@ void goForward(int fwdSpeed) {
   rearMotor->setSpeed(fwdSpeed);
 }
 
-/*
-  void goBackward() {
+
+void goBackward() {
   int bwdSpeed = 100;
   frontMotor->run(BACKWARD);
   frontMotor->setSpeed(bwdSpeed);
@@ -142,24 +143,19 @@ void goForward(int fwdSpeed) {
   rearMotor->run(BACKWARD);
   rearMotor->setSpeed(bwdSpeed);
 
-  delay(1000);
-  }
+  //  delay(1000);
+}
 
-*/
+
 //best angle is defined as the servo position with the largest distance value
 int calcBestAngle() {
 
   int bestAngle = 0;
   int maxDistance = 0;
-  //let's go through all the values in the array..
 
-  //Serial.println("_______");
+  //let's go through all the values in the array..
   for (uint8_t i = 0; i < distanceArrayMaxSize; i++) {
     //..to see if the new value is greater than the max seen thus far
-    //Serial.print("i: ");
-    //Serial.print(i);
-    //Serial.print(" distance: ");
-    //Serial.print(dArray[i]);
     if (dArray[i] > maxDistance) {
       //yes it is!, save bestAngle and reset maxDistance to the new largest value
       bestAngle = i;
@@ -167,8 +163,8 @@ int calcBestAngle() {
     }
 
   }
-  //Serial.print("Returning best angle: ");
-  //Serial.println(bestAngle * abs(delta));
+  //need to multiply by the abs value of delta to restore the angle
+  //if we don't, we're returning the array index
   return bestAngle * abs(delta);
 }
 
