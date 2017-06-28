@@ -1,4 +1,3 @@
-
 #include <Wire.h>
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_MS_PWMServoDriver.h"
@@ -25,6 +24,10 @@ int delta = 20;   // new increment for the servo adjustment, move by this value
 const int distanceArrayMaxSize = 180 / 20 + 1; //180 degrees divided by delta + 0th position
 //int maxDistance = 0; // greatest distance seen thus far
 int dArray[distanceArrayMaxSize]; //array of distances, indexed by angles
+
+unsigned long previousMillis = 0; //will store last time the servo was moved
+
+const long interval = 50;        // interval at which to reposition the servo
 
 void setup() {
 
@@ -57,9 +60,9 @@ void loop() {
 
   int distance = frontSensor.readRangeContinuousMillimeters();
 
-  //tiny bit of optimization, force 180 degrees into 19 array slots. 180 / 10 = 18 plus 0th = 19 entries.
-  //need abs() to avoid negative indices
-
+  //tiny bit of optimization, force 180 degrees into {delta} array slots.
+  //180 / {delta} is how many samples we take.
+  //Because delta can be negative, we need abs() to avoid negative indices
   index = angle / abs(delta);
 
   dArray[index] = distance;
@@ -78,13 +81,13 @@ void loop() {
     turn = map(optimalAngle, 0, 90, 180, 0);
     //turn = 4.5 * optimalAngle - 180;
     steeringMotor->setSpeed(turn);
-    Serial.println("RIGHT TURN");
+    //Serial.println("RIGHT TURN");
   } else {
     steeringMotor->run(BACKWARD); //turn the wheels left
     turn = map(optimalAngle, 90, 180, 0, 180);
     //turn = -4.5 * optimalAngle + 180;
     steeringMotor->setSpeed(turn);
-    Serial.println("LEFT TURN");
+    //Serial.println("LEFT TURN");
   }
 
 
@@ -110,19 +113,35 @@ void loop() {
   speed = map(distance, 10, 1100, 0, 150);
   goForward(speed);
 
-  while (distance < 50) {
+  //backup if too close to an obstacle
+  while (distance < 100) {
+    steeringMotor->run(BACKWARD);
+    steeringMotor->setSpeed(200);
     goBackward();
     distance = frontSensor.readRangeContinuousMillimeters();
   }
 
-  angle += delta;
-  radarServo.write(angle);              // tell servo to go to position in variable 'pos'
-  //delay(10);
 
-  if ((angle == 0) || (angle == 180)) {
-    delta = -delta;
-    //delay(5000);
+
+  // check to see if it's time to move the servo; that is, if the
+  // difference between the current time and last time we moved
+  // the servo is bigger than the interval at which you want to
+  // move the servo.
+  unsigned long currentMillis = millis();
+
+  if ((unsigned long)(currentMillis - previousMillis) >= interval) {
+    angle += delta;
+    // save the last time we moved
+    previousMillis = currentMillis;
+    radarServo.write(angle);              // tell servo to go to position in variable 'pos'
+
+    if ((angle == 0) || (angle == 180)) {
+      delta = -delta;
+      //delay(5000);
+    }
+
   }
+
 
 }
 
